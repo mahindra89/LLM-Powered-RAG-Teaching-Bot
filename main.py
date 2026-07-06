@@ -312,7 +312,7 @@ def get_context(query, collection, threshold=0.4):
 # - source: Source document name
 # - page: Page number in source
 
-def check_ollama():
+def check_ollama(show_messages=True):
     """Check if Ollama server is running and accessible
     
     Returns:
@@ -323,11 +323,13 @@ def check_ollama():
         response = requests.get(f"{OLLAMA_URL}/api/tags", timeout=5)
         if response.status_code == 200:
             return True
-        st.warning(f"Ollama returned status {response.status_code}")
+        if show_messages:
+            st.warning(f"Ollama returned status {response.status_code}")
         return False
     except Exception as e:
-        st.error(f"Cannot connect to Ollama: {str(e)[:100]}")
-        st.info("Start Ollama by running: **ollama serve**")
+        if show_messages:
+            st.error(f"Cannot connect to Ollama: {str(e)[:100]}")
+            st.info("Start Ollama by running: **ollama serve**")
         return False
 
 
@@ -908,219 +910,241 @@ def main():
     3. Renders the UI based on selected mode (Quiz or Tutor)
     4. Handles user interactions and state management
     """
-    # Configure Streamlit page settings
-    st.set_page_config(page_title="RAG System", layout="wide")
-    
-    st.title("Local RAG: Quiz & Tutor")
-    
-    # Initialize vector database connection (stored in Streamlit session state for persistence)
+    st.set_page_config(page_title="Network Security RAG Tutor", layout="wide")
+
+    st.title("Network Security RAG Tutor")
+    st.caption(
+        "A local AI study assistant that answers course questions, generates quizzes, "
+        "and shows document citations from network security materials."
+    )
+
+    pdf_count = len(list(Path(SOURCE_DIR).glob("*.pdf")))
+    processed_count = len(list(Path(PROCESSED_DIR).glob("*.md")))
+
     if 'collection' not in st.session_state:
         try:
-            # Try to connect to existing ChromaDB database
             client = chromadb.PersistentClient(path=VECTOR_DB_DIR)
-            collection = client.get_collection(COLLECTION_NAME)  # Get existing collection
-            st.session_state.collection = collection  # Store in session state
-            st.sidebar.success(f"{collection.count()} documents loaded")
+            collection = client.get_collection(COLLECTION_NAME)
+            st.session_state.collection = collection
         except:
-            # Database doesn't exist or error occurred
-            st.sidebar.warning("Database not initialized")
-            if st.sidebar.button("Process PDFs"):
-                with st.spinner("Processing..."):
-                    collection = process_pdfs()  # Create new database from PDFs
-                    if collection:
-                        st.session_state.collection = collection
-                        st.rerun()  # Refresh page to show loaded state
-            return  # Stop execution until database is initialized
-    
-    # Get collection from session state (now guaranteed to exist)
+            st.session_state.collection = None
+
     collection = st.session_state.collection
-    
-    # Check Ollama connection status and display in sidebar
-    ollama_status = check_ollama()
-    st.sidebar.info(f"Ollama: {'Running' if ollama_status else 'Not running'}")
-    if not ollama_status:
-        st.sidebar.caption("Install: `ollama pull llama2`")
-    
-    # Mode selection radio buttons in sidebar
-    mode = st.sidebar.radio("Mode", ["Quiz", "Tutor"])
-    
-    # Quiz Mode - Generate and display quiz questions
-    if mode == "Quiz":
-        st.header("Quiz Generator")
-        
-        # Text input for quiz topic
-        topic = st.text_input("Topic:", placeholder="e.g., TCP Protocol, RSA Encryption")
-        
-        # Generate quiz button
-        if st.button("Generate Quiz", type="primary"):
-            if topic:
-                with st.spinner("Generating 5-question quiz..."):
-                    # Step 1: Retrieve context from local DB or web
-                    context, src_type = get_context(topic, collection)
-                    
-                    if context:
-                        # Step 2: Generate quiz using LLM
-                        quiz = generate_quiz(topic, context, 5)
-                        if quiz and len(quiz) > 0:
-                            # Store quiz in session state for persistence
-                            st.session_state.quiz = quiz
-                            st.session_state.quiz_context = context
-                            st.session_state.src_type = src_type
-                            st.session_state.user_answers = {}  # Reset previous answers
-                            st.rerun()  # Refresh to display quiz
-                        else:
-                            st.error("Failed to generate quiz. Please ensure Ollama is running and try again.")
-                    else:
-                        st.error("No context found for this topic")
-        
-        # Display quiz if available (persists across interactions via session state)
-        if 'quiz' in st.session_state and st.session_state.quiz:
-            quiz = st.session_state.quiz
-            
-            # Show where quiz content came from (local PDFs or web search)
-            st.success(f"Quiz from {st.session_state.get('src_type', 'local')} sources")
-            st.markdown("---")
-            
-            # Use Streamlit form to prevent page rerun on every input change
-            with st.form("quiz_form"):
-                answers = []  # Collect all answers
-                # Display each question
-                for i, q in enumerate(quiz):
-                    q_type = q.get('type', 'MCQ')
-                    st.markdown(f"### Question {i+1} ({q_type})")
-                    # Display question text (st.write avoids markdown formatting issues)
-                    st.write(q['question'])
-                    
-                    if q_type == 'FIB':
-                        # Fill-in-the-blank: text input box
-                        ans = st.text_input(
-                            "Your answer:",
-                            key=f"q_{i}",  # Unique key for each question
-                            value="",  # Start with empty string
-                            placeholder="Type your answer here"
-                        )
-                        answers.append(ans)  # Store user's typed answer
-                    else:
-                        # MCQ and TF: radio buttons for options
-                        ans = st.radio(
-                            "Select your answer:",
-                            q['options'],  # List of options (A, B, C, D)
-                            key=f"q_{i}",  # Unique key for each question
-                            index=None  # No default selection (user must choose)
-                        )
-                        # Extract first character (A, B, C, or D) if answer selected
-                        answers.append(ans[0] if ans else None)
-                
-                # Submit button at end of form
-                submitted = st.form_submit_button("Submit Answers", type="primary")
-                
-                if submitted:
-                    # Validate that all questions are answered before grading
-                    unanswered = []
-                    for i, (q, ans) in enumerate(zip(quiz, answers)):
-                        if q.get('type') == 'FIB':
-                            # Check if FIB answer is empty or whitespace
-                            if not ans or not ans.strip():
-                                unanswered.append(i + 1)  # 1-based numbering
-                        else:
-                            # Check if MCQ/TF has no selection
-                            if ans is None:
-                                unanswered.append(i + 1)
-                    
-                    if unanswered:
-                        # Show warning if incomplete
-                        st.warning(f"Please answer all questions before submitting. Unanswered: {unanswered}")
-                    else:
-                        # All answered - grade the quiz
-                        score, feedback = grade_answers(quiz, answers)
-                        st.markdown(f"## Score: {score}/{len(quiz)}")
-                        st.markdown("---")
-                        # Display detailed feedback for each question
-                        for fb in feedback:
-                            st.markdown(fb)
-                            st.markdown("---")
-            
-            # Citations - Show sources used to generate quiz (collapsible section)
-            if 'quiz_context' in st.session_state:
-                with st.expander("Sources"):
-                    # Display up to 5 sources with document name and page
-                    for c in st.session_state.quiz_context[:5]:
-                        st.markdown(f"- **{c['source']}** (Page {c['page']})")
-            
-            # Button to generate a new quiz (clears current quiz from session state)
-            if st.button("New Quiz"):
-                # Clean up session state
-                for key in ['quiz', 'quiz_context', 'user_answers', 'src_type']:
-                    if key in st.session_state:
-                        del st.session_state[key]
-                st.rerun()  # Refresh to show quiz input again
-    
-    # Tutor Mode - Provide detailed explanations with citations
-    else:
-        st.header("AI Tutor")
-        
-        # Text area for user's question (multi-line input)
-        topic = st.text_area(
-            "Ask anything:", 
-            placeholder="e.g., Explain how RSA encryption works",
-            height=100
+    doc_count = collection.count() if collection else 0
+    ollama_status = check_ollama(show_messages=False)
+
+    with st.sidebar:
+        st.header("System Status")
+        st.metric("Indexed chunks", doc_count)
+        st.metric("Source PDFs", pdf_count)
+        st.metric("Processed notes", processed_count)
+        st.info(f"Ollama: {'Running' if ollama_status else 'Not running'}")
+        if not ollama_status:
+            st.caption("For generated answers, run `ollama serve` and pull `qwen2.5:7b-instruct`.")
+
+        if st.button("Process PDFs", type="primary", use_container_width=True):
+            with st.spinner("Indexing PDFs into the local vector database..."):
+                collection = process_pdfs()
+                if collection:
+                    st.session_state.collection = collection
+                    st.rerun()
+
+    overview, tutor_tab, quiz_tab, learning_tab = st.tabs(
+        ["Overview", "Tutor", "Quiz", "Learning"]
+    )
+
+    with overview:
+        left, middle, right = st.columns(3)
+        left.metric("Knowledge chunks", doc_count)
+        middle.metric("Local documents", pdf_count)
+        right.metric("LLM status", "Ready" if ollama_status else "Offline")
+
+        st.subheader("What this app does")
+        st.markdown(
+            """
+This project turns network security course material into an interactive study
+assistant. It retrieves relevant pages from the local knowledge base, uses a
+local LLM when available, and keeps citations visible so every answer can be
+checked against the source material.
+
+Use **Tutor** for guided explanations and **Quiz** to generate practice
+questions with automatic grading.
+"""
         )
-        
-        # Button to get explanation
-        if st.button("Get Explanation", type="primary"):
+
+        if not collection:
+            st.warning("The vector database is not initialized yet.")
+            st.write("Click **Process PDFs** in the sidebar to index the documents in `Source/`.")
+
+    with tutor_tab:
+        st.header("Ask the Tutor")
+        st.write("Ask a focused network security question and review the cited sources behind the answer.")
+
+        topic = st.text_area(
+            "Question",
+            placeholder="Explain how RSA encryption works, with source citations.",
+            height=110,
+        )
+
+        if st.button("Get Answer", type="primary", disabled=collection is None):
             if topic:
-                with st.spinner("Searching knowledge base..."):
-                    # Step 1: Retrieve relevant context
+                with st.spinner("Retrieving sources and preparing an answer..."):
                     context, src_type = get_context(topic, collection)
-                    
+
                     if context and len(context) > 0 and src_type != "none":
-                        # Store context in session state
                         st.session_state.tutor_response = None
                         st.session_state.tutor_context = context
                         st.session_state.tutor_src_type = src_type
-                        
-                        # Step 2: Generate explanation using LLM
+
                         explanation, ctx = generate_explanation(topic, context)
                         st.session_state.tutor_response = explanation
-                        st.rerun()  # Refresh to display explanation
+                        st.rerun()
                     else:
-                        # No context found
-                        st.error("No relevant information found in local sources or web")
-                        st.info("Tips: Try different keywords, check your internet connection, or add relevant PDFs to the Source folder")
-        
-        # Display explanation if available (persists in session state)
+                        st.error("No relevant information found in local sources or web.")
+                        st.info("Try different keywords or add relevant PDFs to the Source folder.")
+
         if 'tutor_response' in st.session_state and st.session_state.tutor_response:
-            st.markdown("---")
-            
-            # Show where information came from (local or web)
             src_badge = st.session_state.get('tutor_src_type', 'local')
-            st.success(f"Information from {src_badge} sources")
-            
-            # Display the generated explanation
-            st.markdown("## Explanation")
+            st.success(f"Answer grounded in {src_badge} sources")
+
+            st.subheader("Answer")
             st.markdown(st.session_state.tutor_response)
-            
-            # Source Citations - Show all sources used with details
-            st.markdown("---")
-            st.markdown("### Source Citations")
-            
+
             if 'tutor_context' in st.session_state:
-                # Display each source in expandable section
+                st.subheader("Cited Sources")
                 for i, c in enumerate(st.session_state.tutor_context[:5], 1):
-                    with st.expander(f"Source {i}: {c['source']} (Page {c['page']})"):
-                        # Show relevance score (how well it matches the query)
-                        st.markdown(f"**Relevance Score:** {c.get('score', 'N/A')}")
-                        st.markdown("**Content Preview:**")
-                        # Show first 500 characters of source content
-                        st.text(c['text'][:500] + "...")
-            
-            # Button to ask a new question
+                    score = c.get('score', 'N/A')
+                    with st.expander(f"{i}. {c['source']} | Page {c['page']} | Score {score}"):
+                        st.text(c['text'][:700] + "...")
+
             if st.button("Ask Another Question"):
-                # Clear tutor session state
                 for key in ['tutor_response', 'tutor_context', 'tutor_src_type']:
                     if key in st.session_state:
                         del st.session_state[key]
-                st.rerun()  # Refresh to show question input again
+                st.rerun()
+
+    with quiz_tab:
+        st.header("Generate a Practice Quiz")
+        st.write("Create a short quiz from retrieved course context and get immediate feedback.")
+
+        topic = st.text_input("Quiz topic", placeholder="TCP handshake, RSA, firewalls, DNS security")
+
+        if st.button("Generate Quiz", type="primary", disabled=collection is None):
+            if topic:
+                with st.spinner("Building a 5-question quiz from retrieved sources..."):
+                    context, src_type = get_context(topic, collection)
+
+                    if context:
+                        quiz = generate_quiz(topic, context, 5)
+                        if quiz and len(quiz) > 0:
+                            st.session_state.quiz = quiz
+                            st.session_state.quiz_context = context
+                            st.session_state.src_type = src_type
+                            st.session_state.user_answers = {}
+                            st.rerun()
+                        else:
+                            st.error("Failed to generate quiz. Please ensure Ollama is running and try again.")
+                    else:
+                        st.error("No context found for this topic.")
+
+        if 'quiz' in st.session_state and st.session_state.quiz:
+            quiz = st.session_state.quiz
+            st.success(f"Quiz grounded in {st.session_state.get('src_type', 'local')} sources")
+
+            with st.form("quiz_form"):
+                answers = []
+                for i, q in enumerate(quiz):
+                    q_type = q.get('type', 'MCQ')
+                    st.markdown(f"### Question {i + 1} ({q_type})")
+                    st.write(q['question'])
+
+                    if q_type == 'FIB':
+                        ans = st.text_input(
+                            "Your answer",
+                            key=f"q_{i}",
+                            value="",
+                            placeholder="Type your answer here",
+                        )
+                        answers.append(ans)
+                    else:
+                        ans = st.radio(
+                            "Select your answer",
+                            q['options'],
+                            key=f"q_{i}",
+                            index=None,
+                        )
+                        answers.append(ans[0] if ans else None)
+
+                submitted = st.form_submit_button("Submit Answers", type="primary")
+
+                if submitted:
+                    unanswered = []
+                    for i, (q, ans) in enumerate(zip(quiz, answers)):
+                        if q.get('type') == 'FIB':
+                            if not ans or not ans.strip():
+                                unanswered.append(i + 1)
+                        elif ans is None:
+                            unanswered.append(i + 1)
+
+                    if unanswered:
+                        st.warning(f"Please answer all questions before submitting. Unanswered: {unanswered}")
+                    else:
+                        score, feedback = grade_answers(quiz, answers)
+                        st.subheader(f"Score: {score}/{len(quiz)}")
+                        for fb in feedback:
+                            st.markdown(fb)
+                            st.markdown("---")
+
+            if 'quiz_context' in st.session_state:
+                with st.expander("Quiz Sources"):
+                    for c in st.session_state.quiz_context[:5]:
+                        st.markdown(f"- **{c['source']}** (Page {c['page']})")
+
+            if st.button("New Quiz"):
+                for key in ['quiz', 'quiz_context', 'user_answers', 'src_type']:
+                    if key in st.session_state:
+                        del st.session_state[key]
+                st.rerun()
+
+    with learning_tab:
+        st.header("Learning")
+        st.markdown(
+            """
+This application demonstrates a privacy-preserving Retrieval-Augmented
+Generation workflow. Instead of sending course documents to an external model,
+the system indexes local PDFs, retrieves the most relevant pages for a question,
+and uses a local LLM to compose an answer or quiz.
+
+The important engineering idea is grounding: the model is not expected to answer
+from memory alone. It receives retrieved source passages and the interface keeps
+those citations visible for verification.
+"""
+        )
+
+        left, right = st.columns(2)
+        with left:
+            st.markdown(
+                """
+#### What is being demonstrated
+
+- Local document ingestion from PDFs
+- Page-level text extraction with metadata
+- Semantic search through ChromaDB
+- Local LLM generation through Ollama
+- Citation-first tutor and quiz workflows
+"""
+            )
+        with right:
+            st.markdown(
+                """
+#### Why it matters
+
+- Keeps private course material on the user's machine
+- Makes answers traceable to source documents
+- Supports self-study with immediate quiz feedback
+- Shows a practical RAG architecture beyond a static notebook
+"""
+            )
 
 
 # Entry point: Run main() when script is executed directly
