@@ -6,12 +6,14 @@ Single file, robust, accurate with proper citations
 import streamlit as st #UI
 import chromadb   #Vector DB
 import fitz #it is a PyMuPDF module
+import html
 import os
 import json
 from pathlib import Path #it is used for handling file paths
 from ddgs import DDGS #It is used for DuckDuckGo searches
 import requests #It is used for making HTTP requests
 import wikipedia #it is used for Wikipedia searches
+import streamlit.components.v1 as components
 
 
 # Configuration - Directory and API settings
@@ -26,6 +28,20 @@ PROJECT_DOCS = {
     "Architecture notes": ROOT / "ARCHITECTURE.md",
     "Repository README": ROOT / "README.md",
 }
+DIAGRAM_PATH = ROOT / "architecture-diagram.mmd"
+
+
+def render_mermaid_diagram(diagram_text):
+    """Render Mermaid text in Streamlit while keeping the source available."""
+    escaped_diagram = html.escape(diagram_text)
+    html_doc = f"""
+    <pre class="mermaid">{escaped_diagram}</pre>
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({{ startOnLoad: true, securityLevel: "loose" }});
+    </script>
+    """
+    components.html(html_doc, height=900, scrolling=True)
 
 
 # ============================================================================
@@ -916,9 +932,9 @@ def main():
     3. Renders the UI based on selected mode (Quiz or Tutor)
     4. Handles user interactions and state management
     """
-    st.set_page_config(page_title="Network Security RAG Tutor", layout="wide")
+    st.set_page_config(page_title="Network Security RAG Teaching Bot", layout="wide")
 
-    st.title("Network Security RAG Tutor")
+    st.title("Network Security RAG Teaching Bot")
     st.caption(
         "A local AI study assistant that answers course questions, generates quizzes, "
         "and shows document citations from network security materials."
@@ -956,8 +972,8 @@ def main():
                     st.session_state.collection = collection
                     st.rerun()
 
-    overview, architecture_tab, tutor_tab, quiz_tab, learning_tab = st.tabs(
-        ["Overview", "Architecture", "Tutor", "Quiz", "Learning"]
+    overview, architecture_tab, learning_tab = st.tabs(
+        ["Overview", "Architecture", "Learning"]
     )
 
     with overview:
@@ -994,14 +1010,14 @@ machine while still delivering an interactive study experience.
                         use_container_width=True,
                     )
 
-        st.subheader("What the App Does")
+        st.subheader("What the Project Does")
         st.markdown(
             """
 - Indexes local PDFs into a ChromaDB vector database.
 - Retrieves the most relevant source pages for a question or quiz topic.
 - Uses Ollama with `qwen2.5:7b-instruct` when the local model is available.
-- Falls back to retrieved source text when LLM generation is unavailable.
 - Shows citations so answers can be checked against the original material.
+- Supports tutor-style explanations and quiz generation in the local codebase.
 """
         )
 
@@ -1028,6 +1044,23 @@ makes it easier to debug each part of the RAG pipeline.
 """
         )
 
+        if DIAGRAM_PATH.exists():
+            diagram_text = DIAGRAM_PATH.read_text(encoding="utf-8")
+            render_mermaid_diagram(diagram_text)
+
+            with st.expander("View Mermaid source"):
+                st.code(diagram_text, language="mermaid")
+
+            st.download_button(
+                "Download architecture diagram",
+                data=diagram_text,
+                file_name=DIAGRAM_PATH.name,
+                mime="text/plain",
+                use_container_width=True,
+            )
+        else:
+            st.warning("Architecture diagram file is missing.")
+
         flow = [
             ("1. Ingest", "PDF pages are extracted with PyMuPDF and saved as Markdown notes."),
             ("2. Embed", "Page-level chunks are stored in ChromaDB with source and page metadata."),
@@ -1051,136 +1084,6 @@ project useful for learning, but also relevant to real AI engineering work
 where data boundaries and auditability matter.
 """
         )
-
-    with tutor_tab:
-        st.header("Ask the Tutor")
-        st.write("Ask a focused network security question and review the cited sources behind the answer.")
-
-        topic = st.text_area(
-            "Question",
-            placeholder="Explain how RSA encryption works, with source citations.",
-            height=110,
-        )
-
-        if st.button("Get Answer", type="primary", disabled=collection is None):
-            if topic:
-                with st.spinner("Retrieving sources and preparing an answer..."):
-                    context, src_type = get_context(topic, collection)
-
-                    if context and len(context) > 0 and src_type != "none":
-                        st.session_state.tutor_response = None
-                        st.session_state.tutor_context = context
-                        st.session_state.tutor_src_type = src_type
-
-                        explanation, ctx = generate_explanation(topic, context)
-                        st.session_state.tutor_response = explanation
-                        st.rerun()
-                    else:
-                        st.error("No relevant information found in local sources or web.")
-                        st.info("Try different keywords or add relevant PDFs to the Source folder.")
-
-        if 'tutor_response' in st.session_state and st.session_state.tutor_response:
-            src_badge = st.session_state.get('tutor_src_type', 'local')
-            st.success(f"Answer grounded in {src_badge} sources")
-
-            st.subheader("Answer")
-            st.markdown(st.session_state.tutor_response)
-
-            if 'tutor_context' in st.session_state:
-                st.subheader("Cited Sources")
-                for i, c in enumerate(st.session_state.tutor_context[:5], 1):
-                    score = c.get('score', 'N/A')
-                    with st.expander(f"{i}. {c['source']} | Page {c['page']} | Score {score}"):
-                        st.text(c['text'][:700] + "...")
-
-            if st.button("Ask Another Question"):
-                for key in ['tutor_response', 'tutor_context', 'tutor_src_type']:
-                    if key in st.session_state:
-                        del st.session_state[key]
-                st.rerun()
-
-    with quiz_tab:
-        st.header("Generate a Practice Quiz")
-        st.write("Create a short quiz from retrieved course context and get immediate feedback.")
-
-        topic = st.text_input("Quiz topic", placeholder="TCP handshake, RSA, firewalls, DNS security")
-
-        if st.button("Generate Quiz", type="primary", disabled=collection is None):
-            if topic:
-                with st.spinner("Building a 5-question quiz from retrieved sources..."):
-                    context, src_type = get_context(topic, collection)
-
-                    if context:
-                        quiz = generate_quiz(topic, context, 5)
-                        if quiz and len(quiz) > 0:
-                            st.session_state.quiz = quiz
-                            st.session_state.quiz_context = context
-                            st.session_state.src_type = src_type
-                            st.session_state.user_answers = {}
-                            st.rerun()
-                        else:
-                            st.error("Failed to generate quiz. Please ensure Ollama is running and try again.")
-                    else:
-                        st.error("No context found for this topic.")
-
-        if 'quiz' in st.session_state and st.session_state.quiz:
-            quiz = st.session_state.quiz
-            st.success(f"Quiz grounded in {st.session_state.get('src_type', 'local')} sources")
-
-            with st.form("quiz_form"):
-                answers = []
-                for i, q in enumerate(quiz):
-                    q_type = q.get('type', 'MCQ')
-                    st.markdown(f"### Question {i + 1} ({q_type})")
-                    st.write(q['question'])
-
-                    if q_type == 'FIB':
-                        ans = st.text_input(
-                            "Your answer",
-                            key=f"q_{i}",
-                            value="",
-                            placeholder="Type your answer here",
-                        )
-                        answers.append(ans)
-                    else:
-                        ans = st.radio(
-                            "Select your answer",
-                            q['options'],
-                            key=f"q_{i}",
-                            index=None,
-                        )
-                        answers.append(ans[0] if ans else None)
-
-                submitted = st.form_submit_button("Submit Answers", type="primary")
-
-                if submitted:
-                    unanswered = []
-                    for i, (q, ans) in enumerate(zip(quiz, answers)):
-                        if q.get('type') == 'FIB':
-                            if not ans or not ans.strip():
-                                unanswered.append(i + 1)
-                        elif ans is None:
-                            unanswered.append(i + 1)
-
-                    if unanswered:
-                        st.warning(f"Please answer all questions before submitting. Unanswered: {unanswered}")
-                    else:
-                        score, feedback = grade_answers(quiz, answers)
-                        st.subheader(f"Score: {score}/{len(quiz)}")
-                        for fb in feedback:
-                            st.markdown(fb)
-                            st.markdown("---")
-
-            if 'quiz_context' in st.session_state:
-                with st.expander("Quiz Sources"):
-                    for c in st.session_state.quiz_context[:5]:
-                        st.markdown(f"- **{c['source']}** (Page {c['page']})")
-
-            if st.button("New Quiz"):
-                for key in ['quiz', 'quiz_context', 'user_answers', 'src_type']:
-                    if key in st.session_state:
-                        del st.session_state[key]
-                st.rerun()
 
     with learning_tab:
         st.header("Learning")

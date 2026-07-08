@@ -28,13 +28,16 @@ It is designed around three practical engineering ideas:
 
 ## App Experience
 
-The Streamlit interface includes five sections:
+The Streamlit interface now presents the project as a portfolio-ready explainer
+with three sections:
 
 - **Overview:** project idea, system status, source snapshot, and downloadable project notes
-- **Architecture:** RAG pipeline explanation from ingestion to cited output
-- **Tutor:** ask questions and receive cited explanations
-- **Quiz:** generate a short quiz from retrieved context and get immediate grading
+- **Architecture:** RAG pipeline explanation with the Mermaid architecture diagram
 - **Learning:** explains the RAG architecture and what the project demonstrates
+
+The underlying code still contains the local Tutor and Quiz workflows for users
+who run the app with Ollama and an initialized vector database, but those
+interactive tabs are intentionally hidden from the public explainer page.
 
 ## Project Structure
 
