@@ -41,7 +41,7 @@ def render_mermaid_diagram(diagram_text):
       mermaid.initialize({{ startOnLoad: true, securityLevel: "loose" }});
     </script>
     """
-    components.html(html_doc, height=900, scrolling=True)
+    components.html(html_doc, height=720, scrolling=True)
 
 
 # ============================================================================
