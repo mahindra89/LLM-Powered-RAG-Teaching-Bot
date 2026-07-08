@@ -50,8 +50,9 @@ interactive workflows are intentionally not shown on the public explainer page.
 |-- Source/                    # Source PDF documents
 |-- processed_md/              # Extracted markdown notes
 |-- ARCHITECTURE.md            # Architecture explanation
-|-- architecture-diagram.mmd   # Mermaid architecture diagram
+|-- architecture-diagram.mmd   # Original Mermaid architecture diagram
 |-- streamlit-architecture-diagram.mmd # Cloud-safe diagram rendered in the app
+|-- assets/architecture-overview.svg # Static diagram shown on Streamlit Cloud
 `-- README.md
 ```
 

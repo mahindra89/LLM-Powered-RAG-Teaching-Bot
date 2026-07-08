@@ -6,14 +6,12 @@ Single file, robust, accurate with proper citations
 import streamlit as st #UI
 import chromadb   #Vector DB
 import fitz #it is a PyMuPDF module
-import html
 import os
 import json
 from pathlib import Path #it is used for handling file paths
 from ddgs import DDGS #It is used for DuckDuckGo searches
 import requests #It is used for making HTTP requests
 import wikipedia #it is used for Wikipedia searches
-import streamlit.components.v1 as components
 
 
 # Configuration - Directory and API settings
@@ -30,19 +28,7 @@ PROJECT_DOCS = {
 }
 DIAGRAM_PATH = ROOT / "architecture-diagram.mmd"
 STREAMLIT_DIAGRAM_PATH = ROOT / "streamlit-architecture-diagram.mmd"
-
-
-def render_mermaid_diagram(diagram_text):
-    """Render Mermaid text in Streamlit while keeping the source available."""
-    escaped_diagram = html.escape(diagram_text)
-    html_doc = f"""
-    <pre class="mermaid">{escaped_diagram}</pre>
-    <script type="module">
-      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
-      mermaid.initialize({{ startOnLoad: true, securityLevel: "loose" }});
-    </script>
-    """
-    components.html(html_doc, height=720, scrolling=True)
+ARCHITECTURE_IMAGE_PATH = ROOT / "assets" / "architecture-overview.svg"
 
 
 # ============================================================================
@@ -1029,17 +1015,38 @@ makes it easier to debug each part of the RAG pipeline.
 """
         )
 
-        if STREAMLIT_DIAGRAM_PATH.exists():
-            diagram_text = STREAMLIT_DIAGRAM_PATH.read_text(encoding="utf-8")
-            render_mermaid_diagram(diagram_text)
+        if ARCHITECTURE_IMAGE_PATH.exists():
+            st.image(str(ARCHITECTURE_IMAGE_PATH), use_container_width=True)
 
-            with st.expander("View web diagram source"):
-                st.code(diagram_text, language="mermaid")
+            download_left, download_right = st.columns(2)
+            with download_left:
+                st.download_button(
+                    "Download architecture image",
+                    data=ARCHITECTURE_IMAGE_PATH.read_bytes(),
+                    file_name=ARCHITECTURE_IMAGE_PATH.name,
+                    mime="image/svg+xml",
+                    use_container_width=True,
+                )
+            with download_right:
+                diagram_text = DIAGRAM_PATH.read_text(encoding="utf-8") if DIAGRAM_PATH.exists() else ""
+                st.download_button(
+                    "Download original Mermaid diagram",
+                    data=diagram_text,
+                    file_name=DIAGRAM_PATH.name,
+                    mime="text/plain",
+                    use_container_width=True,
+                    disabled=not bool(diagram_text),
+                )
 
+            if STREAMLIT_DIAGRAM_PATH.exists():
+                with st.expander("View simplified Mermaid source"):
+                    st.code(STREAMLIT_DIAGRAM_PATH.read_text(encoding="utf-8"), language="mermaid")
+        elif STREAMLIT_DIAGRAM_PATH.exists():
+            st.code(STREAMLIT_DIAGRAM_PATH.read_text(encoding="utf-8"), language="mermaid")
             st.download_button(
-                "Download original architecture diagram",
-                data=DIAGRAM_PATH.read_text(encoding="utf-8") if DIAGRAM_PATH.exists() else diagram_text,
-                file_name=DIAGRAM_PATH.name,
+                "Download original Mermaid diagram",
+                data=DIAGRAM_PATH.read_text(encoding="utf-8") if DIAGRAM_PATH.exists() else "",
+                file_name=DIAGRAM_PATH.name if DIAGRAM_PATH.exists() else "architecture-diagram.mmd",
                 mime="text/plain",
                 use_container_width=True,
             )

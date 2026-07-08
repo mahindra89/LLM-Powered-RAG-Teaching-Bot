@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760" role="img" aria-labelledby="title desc">
+  <title id="title">Network Security RAG Teaching Bot Architecture</title>
+  <desc id="desc">A static architecture diagram showing document ingestion, retrieval, local generation, and learning outputs.</desc>
+  <defs>
+    <style>
+      .bg { fill: #0f172a; }
+      .panel { fill: #111827; stroke: #334155; stroke-width: 2; }
+      .label { fill: #e5e7eb; font: 700 25px Arial, sans-serif; }
+      .small { fill: #cbd5e1; font: 16px Arial, sans-serif; }
+      .node-title { fill: #ffffff; font: 700 18px Arial, sans-serif; }
+      .node-copy { fill: #e5e7eb; font: 14px Arial, sans-serif; }
+      .arrow { stroke: #94a3b8; stroke-width: 4; fill: none; marker-end: url(#arrow); }
+      .blue { fill: #2563eb; stroke: #60a5fa; }
+      .green { fill: #059669; stroke: #34d399; }
+      .amber { fill: #d97706; stroke: #fbbf24; }
+      .purple { fill: #7c3aed; stroke: #c4b5fd; }
+      .rose { fill: #e11d48; stroke: #fda4af; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" width="1280" height="760" rx="18"/>
+  <text class="label" x="44" y="58">Network Security RAG Teaching Bot</text>
+  <text class="small" x="44" y="88">Local-first retrieval augmented generation pipeline for cited tutoring and quiz generation</text>
+
+  <rect class="panel" x="40" y="130" width="260" height="505" rx="16"/>
+  <text class="label" x="70" y="175">1. Ingest</text>
+  <rect class="amber" x="70" y="215" width="200" height="86" rx="14"/>
+  <text class="node-title" x="95" y="249">Source PDFs</text>
+  <text class="node-copy" x="95" y="274">Lectures, textbook</text>
+  <text class="node-copy" x="95" y="294">excerpts, homework</text>
+  <rect class="green" x="70" y="355" width="200" height="86" rx="14"/>
+  <text class="node-title" x="95" y="389">PyMuPDF</text>
+  <text class="node-copy" x="95" y="414">Page-level text</text>
+  <text class="node-copy" x="95" y="434">extraction</text>
+  <rect class="amber" x="70" y="495" width="200" height="86" rx="14"/>
+  <text class="node-title" x="95" y="529">Markdown Notes</text>
+  <text class="node-copy" x="95" y="554">Human-readable</text>
+  <text class="node-copy" x="95" y="574">processed files</text>
+
+  <rect class="panel" x="360" y="130" width="260" height="505" rx="16"/>
+  <text class="label" x="390" y="175">2. Retrieve</text>
+  <rect class="green" x="390" y="250" width="200" height="92" rx="14"/>
+  <text class="node-title" x="415" y="284">Chunk Pages</text>
+  <text class="node-copy" x="415" y="309">Keep source and</text>
+  <text class="node-copy" x="415" y="329">page metadata</text>
+  <rect class="amber" x="390" y="410" width="200" height="92" rx="14"/>
+  <text class="node-title" x="415" y="444">ChromaDB</text>
+  <text class="node-copy" x="415" y="469">Vector search with</text>
+  <text class="node-copy" x="415" y="489">semantic similarity</text>
+
+  <rect class="panel" x="680" y="130" width="260" height="505" rx="16"/>
+  <text class="label" x="710" y="175">3. Generate</text>
+  <rect class="green" x="710" y="215" width="200" height="92" rx="14"/>
+  <text class="node-title" x="735" y="249">Build Prompt</text>
+  <text class="node-copy" x="735" y="274">Question plus</text>
+  <text class="node-copy" x="735" y="294">retrieved context</text>
+  <rect class="purple" x="710" y="370" width="200" height="92" rx="14"/>
+  <text class="node-title" x="735" y="404">Ollama LLM</text>
+  <text class="node-copy" x="735" y="429">Local answer and</text>
+  <text class="node-copy" x="735" y="449">quiz generation</text>
+  <rect class="green" x="710" y="525" width="200" height="72" rx="14"/>
+  <text class="node-title" x="735" y="557">Fallback</text>
+  <text class="node-copy" x="735" y="582">Show retrieved text</text>
+
+  <rect class="panel" x="1000" y="130" width="240" height="505" rx="16"/>
+  <text class="label" x="1030" y="175">4. Explain</text>
+  <rect class="rose" x="1030" y="230" width="180" height="86" rx="14"/>
+  <text class="node-title" x="1052" y="264">Tutor Answer</text>
+  <text class="node-copy" x="1052" y="289">Clear explanation</text>
+  <rect class="rose" x="1030" y="365" width="180" height="86" rx="14"/>
+  <text class="node-title" x="1052" y="399">Practice Quiz</text>
+  <text class="node-copy" x="1052" y="424">MCQ, true/false,</text>
+  <text class="node-copy" x="1052" y="444">fill in blank</text>
+  <rect class="blue" x="1030" y="500" width="180" height="86" rx="14"/>
+  <text class="node-title" x="1052" y="534">Citations</text>
+  <text class="node-copy" x="1052" y="559">Source and page</text>
+  <text class="node-copy" x="1052" y="579">verification</text>
+
+  <path class="arrow" d="M170 301 L170 355"/>
+  <path class="arrow" d="M170 441 L170 495"/>
+  <path class="arrow" d="M270 538 C315 538 330 296 390 296"/>
+  <path class="arrow" d="M490 342 L490 410"/>
+  <path class="arrow" d="M590 456 C635 456 650 261 710 261"/>
+  <path class="arrow" d="M810 307 L810 370"/>
+  <path class="arrow" d="M810 462 L810 525"/>
+  <path class="arrow" d="M910 416 C955 416 975 273 1030 273"/>
+  <path class="arrow" d="M910 416 C955 416 975 408 1030 408"/>
+  <path class="arrow" d="M1120 451 L1120 500"/>
+
+  <rect class="blue" x="280" y="668" width="720" height="46" rx="23"/>
+  <text class="node-title" x="318" y="697">Design goal: private course material stays local while outputs remain traceable to sources</text>
+</svg>
