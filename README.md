@@ -1,8 +1,10 @@
-# Network Security RAG Tutor
+# Network Security RAG Teaching Bot
 
-An interactive local AI study assistant for network security course material.
-The app answers questions, generates practice quizzes, grades responses, and
-shows citations from the source documents used to produce each result.
+A portfolio-ready Streamlit explainer for a local-first Retrieval-Augmented
+Generation teaching assistant built around network security course material.
+The project shows how lecture slides, textbook excerpts, and homework material
+can be converted into a searchable knowledge base for cited answers and quiz
+generation.
 
 ## What It Does
 
@@ -17,8 +19,8 @@ shows citations from the source documents used to produce each result.
 ## Why This Project Matters
 
 This project demonstrates a privacy-preserving Retrieval-Augmented Generation
-workflow. Course documents stay on the local machine, while the app still gives
-students a modern AI study experience with traceable citations.
+workflow. Course documents stay on the local machine, while the architecture
+still supports a modern AI study experience with traceable citations.
 
 It is designed around three practical engineering ideas:
 
@@ -26,30 +28,30 @@ It is designed around three practical engineering ideas:
 - **Local-first AI:** documents and LLM calls can remain offline
 - **Verifiable learning:** citations make answers auditable instead of opaque
 
-## App Experience
+## Public App Experience
 
-The Streamlit interface now presents the project as a portfolio-ready explainer
-with three sections:
+The Streamlit interface presents the project as a portfolio-ready explainer with
+three sections:
 
-- **Overview:** project idea, system status, source snapshot, and downloadable project notes
+- **Overview:** project idea, source snapshot, design highlights, and downloadable project notes
 - **Architecture:** RAG pipeline explanation with the Mermaid architecture diagram
-- **Learning:** explains the RAG architecture and what the project demonstrates
+- **Learning:** what the project demonstrates and why the design matters
 
 The underlying code still contains the local Tutor and Quiz workflows for users
-who run the app with Ollama and an initialized vector database, but those
-interactive tabs are intentionally hidden from the public explainer page.
+who run the project with Ollama and an initialized vector database, but those
+interactive workflows are intentionally not shown on the public explainer page.
 
 ## Project Structure
 
 ```text
 .
-├── main.py                    # Streamlit app and RAG workflow
-├── requirements.txt           # Python dependencies
-├── Source/                    # Source PDF documents
-├── processed_md/              # Extracted markdown notes
-├── ARCHITECTURE.md            # Architecture explanation
-├── architecture-diagram.mmd   # Mermaid architecture diagram
-└── README.md
+|-- main.py                    # Streamlit explainer and original RAG workflow code
+|-- requirements.txt           # Python dependencies
+|-- Source/                    # Source PDF documents
+|-- processed_md/              # Extracted markdown notes
+|-- ARCHITECTURE.md            # Architecture explanation
+|-- architecture-diagram.mmd   # Mermaid architecture diagram
+`-- README.md
 ```
 
 ## Run Locally
@@ -58,13 +60,6 @@ Install dependencies:
 
 ```bash
 pip install -r requirements.txt
-```
-
-Start Ollama:
-
-```bash
-ollama pull qwen2.5:7b-instruct
-ollama serve
 ```
 
 Run the app:
@@ -79,9 +74,9 @@ Open:
 http://localhost:8501
 ```
 
-If the vector database is not initialized, click **Process PDFs** in the
-sidebar. The app will read files from `Source/`, extract text, and build the
-local ChromaDB index.
+The public page is an explainer and does not require Ollama to be running.
+Ollama and the vector database are part of the original local RAG workflow
+described in the architecture.
 
 ## Streamlit Cloud
 
@@ -93,10 +88,8 @@ Use:
 Main file path: main.py
 ```
 
-Note: full LLM generation requires Ollama, which is intended for local use. On
-hosted environments without Ollama, the app can still show the interface and
-retrieved context, but generated explanations and quizzes need a running local
-Ollama service.
+The public Streamlit page is safe to host as an explainer because it does not
+depend on live Ollama calls or an initialized vector database.
 
 ## Core Stack
 
@@ -108,8 +101,8 @@ Ollama service.
 
 ## Future Improvements
 
-- Add document upload from the UI
-- Add quiz history and score tracking
-- Export quiz attempts to CSV or PDF
+- Add a small recorded demo or screenshots of the local Tutor workflow
+- Add a sample citation walkthrough
 - Add source highlighting inside retrieved passages
 - Add support for additional local Ollama models
+- Separate explainer UI from the local RAG runtime into dedicated modules

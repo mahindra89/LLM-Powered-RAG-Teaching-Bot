@@ -924,14 +924,7 @@ Provide your explanation:"""
 # ============================================================================
 
 def main():
-    """Main Streamlit application entry point
-    
-    This function:
-    1. Configures the Streamlit page
-    2. Initializes the vector database connection
-    3. Renders the UI based on selected mode (Quiz or Tutor)
-    4. Handles user interactions and state management
-    """
+    """Render the public project explainer page."""
     st.set_page_config(page_title="Network Security RAG Teaching Bot", layout="wide")
 
     st.title("Network Security RAG Teaching Bot")
@@ -940,37 +933,8 @@ def main():
         "and shows document citations from network security materials."
     )
 
-    pdf_count = len(list(Path(SOURCE_DIR).glob("*.pdf")))
-    processed_count = len(list(Path(PROCESSED_DIR).glob("*.md")))
-
-    if 'collection' not in st.session_state:
-        try:
-            client = chromadb.PersistentClient(path=VECTOR_DB_DIR)
-            collection = client.get_collection(COLLECTION_NAME)
-            st.session_state.collection = collection
-        except:
-            st.session_state.collection = None
-
-    collection = st.session_state.collection
-    doc_count = collection.count() if collection else 0
-    ollama_status = check_ollama(show_messages=False)
     source_files = sorted(Path(SOURCE_DIR).glob("*.pdf"))
-
-    with st.sidebar:
-        st.header("System Status")
-        st.metric("Indexed chunks", doc_count)
-        st.metric("Source PDFs", pdf_count)
-        st.metric("Processed notes", processed_count)
-        st.info(f"Ollama: {'Running' if ollama_status else 'Not running'}")
-        if not ollama_status:
-            st.caption("For generated answers, run `ollama serve` and pull `qwen2.5:7b-instruct`.")
-
-        if st.button("Process PDFs", type="primary", use_container_width=True):
-            with st.spinner("Indexing PDFs into the local vector database..."):
-                collection = process_pdfs()
-                if collection:
-                    st.session_state.collection = collection
-                    st.rerun()
+    processed_files = sorted(Path(PROCESSED_DIR).glob("*.md"))
 
     overview, architecture_tab, learning_tab = st.tabs(
         ["Overview", "Architecture", "Learning"]
@@ -992,11 +956,32 @@ machine while still delivering an interactive study experience.
 """
         )
 
-        left, middle, right, fourth = st.columns(4)
-        left.metric("Knowledge chunks", doc_count)
-        middle.metric("Source PDFs", pdf_count)
-        right.metric("Processed notes", processed_count)
-        fourth.metric("LLM status", "Ready" if ollama_status else "Offline")
+        st.subheader("Project Highlights")
+        highlight_cols = st.columns(3)
+        with highlight_cols[0]:
+            st.markdown(
+                """
+#### Local-first AI
+The design uses Ollama and a local vector database so course documents can stay
+on the user's machine.
+"""
+            )
+        with highlight_cols[1]:
+            st.markdown(
+                """
+#### Retrieval-grounded answers
+The assistant retrieves source pages first, then uses those passages to support
+answers and quiz explanations.
+"""
+            )
+        with highlight_cols[2]:
+            st.markdown(
+                """
+#### Citation-centered learning
+Every generated response is designed to stay traceable to source documents,
+making the system easier to review and trust.
+"""
+            )
 
         download_left, download_right = st.columns(2)
         for column, (label, path) in zip([download_left, download_right], PROJECT_DOCS.items()):
@@ -1021,16 +1006,15 @@ machine while still delivering an interactive study experience.
 """
         )
 
-        if not collection:
-            st.warning("The vector database is not initialized yet.")
-            st.write("Click **Process PDFs** in the sidebar to index the documents in `Source/`.")
-
         st.subheader("Source Material Snapshot")
         sample_docs = [p.stem for p in source_files[:8]]
         if sample_docs:
             st.write(", ".join(sample_docs))
             if len(source_files) > len(sample_docs):
-                st.caption(f"Showing 8 of {len(source_files)} local PDF sources.")
+                st.caption(
+                    f"Showing 8 examples from {len(source_files)} PDF sources and "
+                    f"{len(processed_files)} processed Markdown notes."
+                )
         else:
             st.info("No source PDFs are currently available in the Source folder.")
 
