@@ -28,9 +28,10 @@ It is designed around three practical engineering ideas:
 
 ## App Experience
 
-The Streamlit interface includes four sections:
+The Streamlit interface includes five sections:
 
-- **Overview:** system status, indexed chunks, source document count, and LLM status
+- **Overview:** project idea, system status, source snapshot, and downloadable project notes
+- **Architecture:** RAG pipeline explanation from ingestion to cited output
 - **Tutor:** ask questions and receive cited explanations
 - **Quiz:** generate a short quiz from retrieved context and get immediate grading
 - **Learning:** explains the RAG architecture and what the project demonstrates

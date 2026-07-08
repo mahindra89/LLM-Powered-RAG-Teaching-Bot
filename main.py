@@ -15,11 +15,17 @@ import wikipedia #it is used for Wikipedia searches
 
 
 # Configuration - Directory and API settings
+ROOT = Path(__file__).parent
 SOURCE_DIR = "Source"  # Directory containing source PDF files
 VECTOR_DB_DIR = "./vectordb"  # Directory for ChromaDB vector database storage
 PROCESSED_DIR = "./processed_md"  # Directory for processed markdown files
 COLLECTION_NAME = "knowledge_base"  # Name of the ChromaDB collection
 OLLAMA_URL = "http://localhost:11434"  # Local Ollama API endpoint
+
+PROJECT_DOCS = {
+    "Architecture notes": ROOT / "ARCHITECTURE.md",
+    "Repository README": ROOT / "README.md",
+}
 
 
 # ============================================================================
@@ -932,6 +938,7 @@ def main():
     collection = st.session_state.collection
     doc_count = collection.count() if collection else 0
     ollama_status = check_ollama(show_messages=False)
+    source_files = sorted(Path(SOURCE_DIR).glob("*.pdf"))
 
     with st.sidebar:
         st.header("System Status")
@@ -949,32 +956,101 @@ def main():
                     st.session_state.collection = collection
                     st.rerun()
 
-    overview, tutor_tab, quiz_tab, learning_tab = st.tabs(
-        ["Overview", "Tutor", "Quiz", "Learning"]
+    overview, architecture_tab, tutor_tab, quiz_tab, learning_tab = st.tabs(
+        ["Overview", "Architecture", "Tutor", "Quiz", "Learning"]
     )
 
     with overview:
-        left, middle, right = st.columns(3)
-        left.metric("Knowledge chunks", doc_count)
-        middle.metric("Local documents", pdf_count)
-        right.metric("LLM status", "Ready" if ollama_status else "Offline")
-
-        st.subheader("What this app does")
+        st.subheader("Project Idea")
         st.markdown(
             """
-This project turns network security course material into an interactive study
-assistant. It retrieves relevant pages from the local knowledge base, uses a
-local LLM when available, and keeps citations visible so every answer can be
-checked against the source material.
+This project is a local-first AI teaching assistant for network security
+coursework. It turns lecture slides, textbook excerpts, and homework material
+into a searchable knowledge base, then uses Retrieval-Augmented Generation to
+answer questions and create practice quizzes with visible source citations.
 
-Use **Tutor** for guided explanations and **Quiz** to generate practice
-questions with automatic grading.
+The main idea is simple but important: students should be able to use an AI
+tutor without sending private course documents to a hosted model. The app keeps
+the document processing, semantic search, and Ollama LLM calls on the local
+machine while still delivering an interactive study experience.
+"""
+        )
+
+        left, middle, right, fourth = st.columns(4)
+        left.metric("Knowledge chunks", doc_count)
+        middle.metric("Source PDFs", pdf_count)
+        right.metric("Processed notes", processed_count)
+        fourth.metric("LLM status", "Ready" if ollama_status else "Offline")
+
+        download_left, download_right = st.columns(2)
+        for column, (label, path) in zip([download_left, download_right], PROJECT_DOCS.items()):
+            with column:
+                if path.exists():
+                    st.download_button(
+                        f"Download {label.lower()}",
+                        data=path.read_bytes(),
+                        file_name=path.name,
+                        mime="text/markdown",
+                        use_container_width=True,
+                    )
+
+        st.subheader("What the App Does")
+        st.markdown(
+            """
+- Indexes local PDFs into a ChromaDB vector database.
+- Retrieves the most relevant source pages for a question or quiz topic.
+- Uses Ollama with `qwen2.5:7b-instruct` when the local model is available.
+- Falls back to retrieved source text when LLM generation is unavailable.
+- Shows citations so answers can be checked against the original material.
 """
         )
 
         if not collection:
             st.warning("The vector database is not initialized yet.")
             st.write("Click **Process PDFs** in the sidebar to index the documents in `Source/`.")
+
+        st.subheader("Source Material Snapshot")
+        sample_docs = [p.stem for p in source_files[:8]]
+        if sample_docs:
+            st.write(", ".join(sample_docs))
+            if len(source_files) > len(sample_docs):
+                st.caption(f"Showing 8 of {len(source_files)} local PDF sources.")
+        else:
+            st.info("No source PDFs are currently available in the Source folder.")
+
+    with architecture_tab:
+        st.header("How the RAG System Works")
+        st.markdown(
+            """
+The app separates the workflow into four practical layers: document ingestion,
+retrieval, generation, and presentation. This keeps the system explainable and
+makes it easier to debug each part of the RAG pipeline.
+"""
+        )
+
+        flow = [
+            ("1. Ingest", "PDF pages are extracted with PyMuPDF and saved as Markdown notes."),
+            ("2. Embed", "Page-level chunks are stored in ChromaDB with source and page metadata."),
+            ("3. Retrieve", "A user question is matched against the local vector database."),
+            ("4. Generate", "Ollama receives the retrieved context and writes the answer or quiz."),
+            ("5. Verify", "The interface displays citations so the result can be checked."),
+        ]
+
+        for title, body in flow:
+            with st.container(border=True):
+                st.markdown(f"#### {title}")
+                st.write(body)
+
+        st.subheader("Local-First Design")
+        st.markdown(
+            """
+The strongest part of this project is its privacy-preserving design. Course
+documents stay in the repository, embeddings are stored in the local ChromaDB
+folder, and the LLM endpoint points to `http://localhost:11434`. That makes the
+project useful for learning, but also relevant to real AI engineering work
+where data boundaries and auditability matter.
+"""
+        )
 
     with tutor_tab:
         st.header("Ask the Tutor")
@@ -1118,6 +1194,12 @@ and uses a local LLM to compose an answer or quiz.
 The important engineering idea is grounding: the model is not expected to answer
 from memory alone. It receives retrieved source passages and the interface keeps
 those citations visible for verification.
+
+Overall, the project connects several job-relevant AI engineering skills:
+document processing, vector search, prompt design, local model integration, and
+user-facing evaluation through citations and quiz feedback. It is designed as a
+teaching tool, but the same pattern applies to enterprise knowledge assistants,
+internal documentation search, and private-domain AI workflows.
 """
         )
 
