@@ -29,6 +29,7 @@ PROJECT_DOCS = {
     "Repository README": ROOT / "README.md",
 }
 DIAGRAM_PATH = ROOT / "architecture-diagram.mmd"
+STREAMLIT_DIAGRAM_PATH = ROOT / "streamlit-architecture-diagram.mmd"
 
 
 def render_mermaid_diagram(diagram_text):
@@ -1028,16 +1029,16 @@ makes it easier to debug each part of the RAG pipeline.
 """
         )
 
-        if DIAGRAM_PATH.exists():
-            diagram_text = DIAGRAM_PATH.read_text(encoding="utf-8")
+        if STREAMLIT_DIAGRAM_PATH.exists():
+            diagram_text = STREAMLIT_DIAGRAM_PATH.read_text(encoding="utf-8")
             render_mermaid_diagram(diagram_text)
 
-            with st.expander("View Mermaid source"):
+            with st.expander("View web diagram source"):
                 st.code(diagram_text, language="mermaid")
 
             st.download_button(
-                "Download architecture diagram",
-                data=diagram_text,
+                "Download original architecture diagram",
+                data=DIAGRAM_PATH.read_text(encoding="utf-8") if DIAGRAM_PATH.exists() else diagram_text,
                 file_name=DIAGRAM_PATH.name,
                 mime="text/plain",
                 use_container_width=True,

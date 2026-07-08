@@ -1,0 +1,56 @@
+flowchart TD
+    user["Student or reviewer"]
+    app["Streamlit explainer and local study UI"]
+
+    subgraph ingest["Document ingestion"]
+        pdfs["Network security PDFs"]
+        extract["PyMuPDF page text extraction"]
+        notes["Processed Markdown notes"]
+    end
+
+    subgraph retrieval["Retrieval layer"]
+        chunks["Page-level chunks with source metadata"]
+        vector["ChromaDB vector store"]
+        search["Semantic search for relevant passages"]
+    end
+
+    subgraph generation["Local generation layer"]
+        prompt["Prompt built from retrieved context"]
+        ollama["Ollama local LLM"]
+        fallback["Retrieved source text fallback"]
+    end
+
+    subgraph output["Learning outputs"]
+        answer["Tutor-style explanation"]
+        quiz["Practice quiz and grading"]
+        citations["Source citations for verification"]
+    end
+
+    user --> app
+    app --> pdfs
+    pdfs --> extract
+    extract --> notes
+    notes --> chunks
+    chunks --> vector
+    vector --> search
+    search --> prompt
+    prompt --> ollama
+    prompt --> fallback
+    ollama --> answer
+    ollama --> quiz
+    fallback --> answer
+    answer --> citations
+    quiz --> citations
+    citations --> app
+
+    classDef interface fill:#2563eb,stroke:#1e40af,color:#ffffff
+    classDef storage fill:#f59e0b,stroke:#b45309,color:#111827
+    classDef process fill:#10b981,stroke:#047857,color:#06281f
+    classDef model fill:#8b5cf6,stroke:#6d28d9,color:#ffffff
+    classDef result fill:#f43f5e,stroke:#be123c,color:#ffffff
+
+    class user,app interface
+    class pdfs,notes,vector storage
+    class extract,chunks,search,prompt,fallback process
+    class ollama model
+    class answer,quiz,citations result
