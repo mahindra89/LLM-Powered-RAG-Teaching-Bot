@@ -90,6 +90,7 @@
   <path class="arrow" d="M910 416 C955 416 975 408 1030 408"/>
   <path class="arrow" d="M1120 451 L1120 500"/>
 
-  <rect class="blue" x="280" y="668" width="720" height="46" rx="23"/>
-  <text class="node-title" x="318" y="697">Design goal: private course material stays local while outputs remain traceable to sources</text>
+  <rect class="blue" x="110" y="650" width="1060" height="76" rx="22"/>
+  <text class="node-title" x="640" y="682" text-anchor="middle">Design goal: private course material stays local</text>
+  <text class="node-title" x="640" y="708" text-anchor="middle">while outputs remain traceable to sources</text>
 </svg>
